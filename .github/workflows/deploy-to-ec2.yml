@@ -3,7 +3,7 @@ name: Deploy Flask App to EC2
 on:
   push:
     branches:
-      - test
+      - test  # Asegúrate de que el flujo de trabajo se ejecute en la rama correcta
 
 jobs:
   deploy:
@@ -13,6 +13,11 @@ jobs:
     - name: Check out the code
       uses: actions/checkout@v3
 
+    # Paso para instalar dependencias de Python necesarias (como python3-venv)
+    - name: Install Python3 venv
+      run: sudo apt-get update && sudo apt-get install python3.12-venv
+
+    # Desplegar en EC2
     - name: Deploy to EC2
       uses: easingthemes/ssh-deploy@main
       env:
@@ -21,6 +26,7 @@ jobs:
         REMOTE_USER: ${{ secrets.EC2_USER }}
         TARGET: ${{ secrets.TARGET_DIR }}
 
+    # Ejecutar comandos remotos en EC2
     - name: Executing remote ssh commands using ssh key
       uses: appleboy/ssh-action@master
       with:
@@ -28,17 +34,17 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          # Navegar al directorio del proyecto
+          # Navegar al directorio donde se encuentra el proyecto
           cd ${{ secrets.TARGET_DIR }}
 
-          # Actualizar el código desde la rama principal
+          # Hacer pull del repositorio para asegurarnos de que estamos actualizados
           git pull origin main
 
-          # Activar el entorno virtual o crear uno si no existe
+          # Verificar si ya existe un entorno virtual y si no, crearlo
           if [ ! -d "venv" ]; then
-            python3 -m venv venv
+            python3 -m venv venv  # Crear el entorno virtual
           fi
-          source venv/bin/activate
+          source venv/bin/activate  # Activar el entorno virtual
 
           # Instalar dependencias desde requirements.txt
           pip install -r requirements.txt
@@ -46,6 +52,7 @@ jobs:
           # Cerrar procesos Flask anteriores si existen
           pkill -f "flask run" || echo "No previous Flask processes running."
 
-          # Ejecutar la aplicación Flask en segundo plano
+          # Ejecutar la aplicación Flask en segundo plano en el puerto 80
           nohup flask run --host=0.0.0.0 --port=80 > flask_output.log 2>&1 &
+
           echo "Flask application is running in the background."
